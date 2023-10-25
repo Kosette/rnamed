@@ -1,6 +1,6 @@
+use blake3::Hasher;
 use glob::glob;
 use rayon::prelude::*;
-use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -47,14 +47,14 @@ fn rename_file(path: &Path) {
 
 fn get_new_name(path: &Path) -> PathBuf {
     let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-    let name = format!("{}.{}", get_sha256(path).to_uppercase(), ext);
+    let name = format!("{}.{}", get_blake3(path).to_uppercase(), ext);
     path.with_file_name(name)
 }
 
-fn get_sha256(path: &Path) -> String {
+fn get_blake3(path: &Path) -> String {
     let data = fs::read(path).unwrap();
-    let mut hasher = Sha256::new();
+    let mut hasher = Hasher::new();
     hasher.update(&data);
     let hash = hasher.finalize();
-    format!("{:x}", hash)
+    format!("{}", hash)
 }
