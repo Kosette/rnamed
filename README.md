@@ -1,8 +1,10 @@
 # rnamed 
-rnamed is simple tool to rename files to its sha256 values.
+rnamed is simple tool to rename files to its blake3 values.
 
 # usage
 ```
+// treat args as regular path
 rnamed <filename>/<dirname>
-// support glob characters
+// treat args as globs
+rnamed -g arg1 arg2
 ```
