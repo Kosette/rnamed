@@ -1,8 +1,12 @@
 # rnamed 
-rnamed is simple tool to rename files to its sha256 values.
+rnamed is simple CLI tool to rename files to its sha256 values.
 
 # usage
 ```
-rnamed <filename>/<dirname>
-// support glob characters
+rnamed <path...>
 ```
+
+### Tips 
+1. support multiple paths and globs
+2. filename contains `[]` like special characters may be ignored
+
