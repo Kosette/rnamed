@@ -1,12 +1,12 @@
 use blake3::Hasher;
+use glob::glob;
+use rayon::prelude::*;
+use std::collections::HashSet;
+use std::env;
 use std::fs::{self, File};
 use std::io::{self, Read};
-use std::env;
 use std::path::PathBuf;
-use rayon::prelude::*;
-use glob::glob;
 use std::sync::Mutex;
-use std::collections::HashSet;
 
 fn main() -> io::Result<()> {
     let args: Vec<String> = env::args().collect();
@@ -18,22 +18,27 @@ fn main() -> io::Result<()> {
     let globbing_enabled = args.contains(&"--glob".to_string()) || args.contains(&"-g".to_string());
 
     // Filter out the program name and the switch
-    let paths = args.into_iter()
+    let paths = args
+        .into_iter()
         .filter(|arg| arg != "--glob" && arg != "-g")
         .collect::<Vec<String>>();
 
-    if paths.is_empty() {
-        return Err(io::Error::new(io::ErrorKind::InvalidInput, "No paths provided"));
+    if paths[1..].is_empty() {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "No paths provided",
+        ));
     }
 
-    paths.par_iter().for_each(|path| {
+    paths[1..].par_iter().for_each(|path| {
         if globbing_enabled {
             // If globbing is enabled, interpret the path as a glob pattern
             for entry in glob(path).expect("Failed to read glob pattern") {
                 match entry {
                     Ok(path) => {
                         if path.is_file() {
-                            check_and_rename(&path, &existing_files).expect("Failed to rename file");
+                            check_and_rename(&path, &existing_files)
+                                .expect("Failed to rename file");
                         }
                     }
                     Err(e) => eprintln!("Glob error: {:?}", e),
@@ -45,7 +50,8 @@ fn main() -> io::Result<()> {
             if path.is_file() {
                 check_and_rename(&path, &existing_files).expect("Failed to rename file");
             } else if path.is_dir() {
-                rename_files_in_directory(path, &existing_files).expect("Failed to rename files in directory");
+                rename_files_in_directory(path, &existing_files)
+                    .expect("Failed to rename files in directory");
             }
         }
     });
@@ -61,7 +67,10 @@ fn main() -> io::Result<()> {
     Ok(())
 }
 
-fn check_and_rename(file_path: &PathBuf, existing_files: &Mutex<HashSet<PathBuf>>) -> io::Result<()> {
+fn check_and_rename(
+    file_path: &PathBuf,
+    existing_files: &Mutex<HashSet<PathBuf>>,
+) -> io::Result<()> {
     let mut file = File::open(&file_path)?;
     let mut hasher = Hasher::new();
     let mut buffer = Vec::new();
@@ -86,13 +95,16 @@ fn check_and_rename(file_path: &PathBuf, existing_files: &Mutex<HashSet<PathBuf>
     } else {
         // Rename the file
         fs::rename(&file_path, &new_path)?;
-        println!("Renamed {:?} to {:?}", file_path, new_path);
+        //        println!("Renamed {:?} to {:?}", file_path, new_path);
     }
 
     Ok(())
 }
 
-fn rename_files_in_directory(dir: PathBuf, existing_files: &Mutex<HashSet<PathBuf>>) -> io::Result<()> {
+fn rename_files_in_directory(
+    dir: PathBuf,
+    existing_files: &Mutex<HashSet<PathBuf>>,
+) -> io::Result<()> {
     let files = fs::read_dir(dir)?;
 
     files
