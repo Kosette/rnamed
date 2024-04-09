@@ -1,5 +1,6 @@
 pub mod rnamed {
     use blake3::Hasher;
+    use rayon::prelude::*;
     use std::collections::HashSet;
     use std::fs;
     use std::io::Read;
@@ -34,17 +35,37 @@ pub mod rnamed {
         }
     }
 
-    pub fn rename_files_in_directory(dir: PathBuf, existing_files: &Mutex<HashSet<PathBuf>>) {
+    pub fn rename_files_in_directory(
+        dir: PathBuf,
+        existing_files: &Mutex<HashSet<PathBuf>>,
+        r: bool,
+    ) {
         // let paths = fs::read_dir(dir)?;
         match fs::read_dir(dir) {
-            Ok(paths) => paths.into_iter().filter_map(|e| e.ok()).for_each(|e| {
-                let e = e.path();
-                if e.is_dir() {
-                    rename_files_in_directory(e, &existing_files);
-                } else {
-                    check_and_rename(&e, &existing_files);
+            Ok(paths) => {
+                let mut file_vec = Vec::new();
+                let mut dir_vec = Vec::new();
+
+                paths
+                    .into_iter()
+                    .filter_map(|e| e.ok())
+                    .map(|e| e.path())
+                    .for_each(|e| {
+                        if e.is_dir() {
+                            dir_vec.push(e);
+                        } else {
+                            file_vec.push(e);
+                        }
+                    });
+                file_vec
+                    .par_iter()
+                    .for_each(|e| check_and_rename(e, existing_files));
+                if r == true {
+                    dir_vec.par_iter().for_each(|e| {
+                        rename_files_in_directory(e.to_path_buf(), existing_files, r)
+                    });
                 }
-            }),
+            }
             Err(_) => {
                 println!("Error reading dir");
             }

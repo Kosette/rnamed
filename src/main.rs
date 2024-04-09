@@ -8,13 +8,23 @@ use std::sync::Mutex;
 
 fn main() {
     let args: Vec<String> = env::args().collect();
+
+    let print_msg = format!(
+        "*Usage*: rnamed [-r|--recursive] [-g|--glob] <Path...>\n
+        *Tip*: multiple paths and globs accepted.\n
+        *Warning*: filename containing special characters like [] may be ignored.\n
+        *Recusive operation may be memory intensive.*"
+    );
+
     // print help msg
     if args.contains(&String::from("--help")) || args.contains(&String::from("-h")) {
-        println!("Usage: rnamed [-g|--glob] <Path...>");
-        println!("    Tip: multiple paths and globs accepted.");
-        println!("    Warning: filename containing special characters like [] may be ignored.");
+        println!("{}", print_msg);
         return;
     }
+
+    // check if is_recursive
+    let is_recursive =
+        args.contains(&"-r".to_string()) || args.contains(&"--recursive".to_string());
 
     // Check if globbing is enabled
     let globbing_enabled = args.contains(&"--glob".to_string()) || args.contains(&"-g".to_string());
@@ -26,7 +36,7 @@ fn main() {
         .collect::<Vec<String>>();
 
     if paths[1..].is_empty() {
-        println!("no path provided");
+        println!("Error: no path provided\n\n{}", print_msg);
     }
 
     // Use a Mutex to safely share mutable data across threads
@@ -40,8 +50,10 @@ fn main() {
                     Ok(path) => {
                         if path.is_file() {
                             rnamed::check_and_rename(&path, &existing_files);
-                        } else if path.is_dir() {
-                            rnamed::rename_files_in_directory(path, &existing_files);
+                        } else if path.is_dir() && is_recursive {
+                            rnamed::rename_files_in_directory(path, &existing_files, true);
+                        } else {
+                            rnamed::rename_files_in_directory(path, &existing_files, false);
                         }
                     }
                     Err(e) => eprintln!("Glob error: {:?}", e),
@@ -52,8 +64,10 @@ fn main() {
             let path = PathBuf::from(path);
             if path.is_file() {
                 rnamed::check_and_rename(&path, &existing_files);
-            } else if path.is_dir() {
-                rnamed::rename_files_in_directory(path, &existing_files)
+            } else if path.is_dir() && is_recursive {
+                rnamed::rename_files_in_directory(path, &existing_files, true);
+            } else {
+                rnamed::rename_files_in_directory(path, &existing_files, false);
             }
         }
     });
