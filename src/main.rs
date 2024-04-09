@@ -10,11 +10,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
 
     let print_msg = format!(
-        "*Usage*: rnamed [-r|--recursive] [-g|--glob] <Path...>\n
-        *Tip*: multiple paths and globs accepted.\n
-        *Warning*: filename containing special characters like [] may be ignored.\n
-        *Recusive operation may be memory intensive.*"
-    );
+        "*Usage*: rnamed [-r|--recursive] [-g|--glob] <Path...>\n*Tip*: multiple paths and globs accepted.\n*Warning*: filename containing special characters like [] may be ignored.\n*Recusive operation may be memory intensive.*");
 
     // print help msg
     if args.contains(&String::from("--help")) || args.contains(&String::from("-h")) {
@@ -32,7 +28,7 @@ fn main() {
     // Filter out the program name and the switch
     let paths = args
         .into_iter()
-        .filter(|arg| arg != "--glob" && arg != "-g")
+        .filter(|arg| arg != "--glob" && arg != "-g" && arg != "-r" && arg != "--recursive" && arg != "-h" && arg != "--help")
         .collect::<Vec<String>>();
 
     if paths[1..].is_empty() {
