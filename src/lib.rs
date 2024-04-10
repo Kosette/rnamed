@@ -8,7 +8,7 @@ pub mod rnamed {
     use std::sync::Mutex;
 
     pub fn check_and_rename(file_path: &PathBuf, existing_files: &Mutex<HashSet<PathBuf>>) {
-        let mut file = fs::File::open(&file_path).unwrap();
+        let mut file = fs::File::open(file_path).unwrap();
         let mut hasher = Hasher::new();
         let mut buffer = Vec::new();
 
@@ -31,7 +31,7 @@ pub mod rnamed {
             existing_files.lock().unwrap().insert(file_path.clone());
         } else {
             // Rename the file
-            fs::rename(&file_path, &new_path).expect("rename files failed");
+            fs::rename(file_path, &new_path).expect("rename files failed");
         }
     }
 
@@ -60,7 +60,7 @@ pub mod rnamed {
                 file_vec
                     .par_iter()
                     .for_each(|e| check_and_rename(e, existing_files));
-                if r == true {
+                if r {
                     dir_vec.par_iter().for_each(|e| {
                         rename_files_in_directory(e.to_path_buf(), existing_files, r)
                     });
