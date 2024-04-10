@@ -1,11 +1,15 @@
 [package]
 name = "rnamed"
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
+authors = ["Kosette"]
+description = "A simple tool to rename files to their blake3 checksum"
+license = "MIT"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 blake3 = "1.5.0"
+clap = { version = "4.5.4", features = ["derive"] }
 glob = "0.3.1"
 rayon = "1.8.0"

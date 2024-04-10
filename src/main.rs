@@ -1,50 +1,35 @@
+use clap::Parser;
 use glob::glob;
 use rayon::prelude::*;
 use rnamed::rnamed;
 use std::collections::HashSet;
-use std::env;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+#[derive(Parser)]
+#[command(version,about,long_about=None,arg_required_else_help(true))]
+struct Args {
+    /// Turn on recursively renaming files
+    #[arg(short, long)]
+    recursive: bool,
+    /// Turn on glob patterns matching files and folders
+    #[arg(short, long)]
+    glob: bool,
+    /// Paths provided to be processed
+    paths: Vec<String>,
+}
+
 fn main() {
-    let args: Vec<String> = env::args().collect();
+    let args = Args::parse();
 
-    let print_msg = "Usage: rnamed [-r|--recursive] [-g|--glob] <Path...>\nTip: multiple paths and globs accepted.\nWarning: filename containing special characters like [] may be ignored.\n*Recusive operation may be memory intensive.*".to_string();
+    let is_recursive = args.recursive;
 
-    // print help msg
-    if args.contains(&String::from("--help")) || args.contains(&String::from("-h")) {
-        println!("{}", print_msg);
-        return;
-    }
-
-    // check if is_recursive
-    let is_recursive =
-        args.contains(&"-r".to_string()) || args.contains(&"--recursive".to_string());
-
-    // Check if globbing is enabled
-    let globbing_enabled = args.contains(&"--glob".to_string()) || args.contains(&"-g".to_string());
-
-    // Filter out the program name and the switch
-    let paths = args
-        .into_iter()
-        .filter(|arg| {
-            arg != "--glob"
-                && arg != "-g"
-                && arg != "-r"
-                && arg != "--recursive"
-                && arg != "-h"
-                && arg != "--help"
-        })
-        .collect::<Vec<String>>();
-
-    if paths[1..].is_empty() {
-        println!("Error: no path provided\n\n{}", print_msg);
-    }
+    let globbing_enabled = args.glob;
 
     // Use a Mutex to safely share mutable data across threads
     let existing_files = Mutex::new(HashSet::new());
 
-    paths[1..].par_iter().for_each(|path| {
+    args.paths[..].par_iter().for_each(|path| {
         if globbing_enabled {
             // If globbing is enabled, interpret the path as a glob pattern
             for entry in glob(path).expect("Failed to read glob pattern") {
