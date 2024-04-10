@@ -66,6 +66,7 @@ jobs:
       - name: Build release
         shell: bash
         run: |
+          rustup target add ${{matrix.target}}
           cargo build --release --target ${{ matrix.target }} &&
           mv target/${{ matrix.target }}/release/rnamed target/${{ matrix.target }}/release/rnamed-${{ matrix.target }}
       
