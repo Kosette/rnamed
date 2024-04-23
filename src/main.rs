@@ -15,6 +15,9 @@ struct Args {
     /// Turn on glob patterns matching files and folders
     #[arg(short, long)]
     glob: bool,
+    /// Turn on silent mode
+    #[arg(short, long)]
+    silent: bool,
     /// Paths provided to be processed
     paths: Vec<String>,
 }
@@ -59,11 +62,13 @@ fn main() {
         }
     });
 
-    let existing_files = existing_files.into_inner().unwrap();
-    if !existing_files.is_empty() {
-        println!("The following files with their checksum name already exist:");
-        for file in existing_files {
-            println!("{:?}", file);
+    if !args.silent {
+        let existing_files = existing_files.into_inner().unwrap();
+        if !existing_files.is_empty() {
+            println!("The following files already exist:");
+            for file in existing_files {
+                println!("{:?}", file);
+            }
         }
     }
 }
