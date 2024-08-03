@@ -1,6 +1,6 @@
 [package]
 name = "rnamed"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 authors = ["Kosette"]
 description = "A simple tool to rename files to their blake3 checksum"

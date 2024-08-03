@@ -8,13 +8,22 @@ pub mod rnamed {
     use std::sync::Mutex;
 
     pub fn check_and_rename(file_path: &PathBuf, existing_files: &Mutex<HashSet<PathBuf>>) {
-        let mut file = fs::File::open(file_path).unwrap();
+        let file = fs::File::open(file_path).unwrap();
+        let mut reader = std::io::BufReader::with_capacity(5_242_880, file);
         let mut hasher = Hasher::new();
-        let mut buffer = Vec::new();
+        let mut buffer = vec![0; 5_242_880];
 
-        // Read the file and feed it to the hasher
-        file.read_to_end(&mut buffer).unwrap();
-        hasher.update(&buffer);
+        // Read the file in chunks and update the hasher
+        loop {
+            match reader.read(&mut buffer) {
+                Ok(0) => break, // EOF
+                Ok(n) => {
+                    hasher.update(&buffer[..n]);
+                }
+                Err(e) => panic!("Error reading file: {}", e),
+            }
+        }
+
         let result = hasher.finalize();
 
         let checksum = format!("{}", result);
