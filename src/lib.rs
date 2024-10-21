@@ -1,19 +1,127 @@
 pub mod rnamed {
     use blake3::Hasher;
-    use rayon::prelude::*;
-    use std::collections::HashSet;
+    use glob::glob;
+    use md5::{Digest, Md5};
+    use sha2::{Sha256, Sha512};
+    use std::collections::HashMap;
+    use std::error::Error;
     use std::fs;
     use std::io::Read;
-    use std::path::PathBuf;
+    use std::path::{Path, PathBuf};
     use std::sync::Mutex;
 
-    pub fn check_and_rename(file_path: &PathBuf, existing_files: &Mutex<HashSet<PathBuf>>) {
+    pub fn search_files(
+        path: impl AsRef<Path>,
+        patterns: Option<Vec<String>>,
+        options: &Options,
+    ) -> Result<Vec<PathBuf>, Box<dyn Error>> {
+        let mut results = Vec::new();
+
+        if patterns.is_some() {
+            let glob_patterns = if options.recursive {
+                patterns
+                    .unwrap()
+                    .iter()
+                    .map(|p| format!("{}/**/{}", path.as_ref().display(), p))
+                    .collect::<Vec<String>>()
+            } else {
+                patterns
+                    .unwrap()
+                    .iter()
+                    .map(|p| format!("{}/{}", path.as_ref().display(), p))
+                    .collect::<Vec<String>>()
+            };
+
+            for p in glob_patterns.iter() {
+                for entry in glob(p)? {
+                    match entry {
+                        Ok(path) => {
+                            if path.is_file() {
+                                results.push(path);
+                            }
+                        }
+                        Err(e) => println!("Glob error: {:?}", e),
+                    }
+                }
+            }
+        } else {
+            search_path(path.as_ref(), &mut results, options)?;
+        }
+
+        Ok(results)
+    }
+
+    fn search_path(
+        path: &Path,
+        results: &mut Vec<PathBuf>,
+        options: &Options,
+    ) -> Result<(), Box<dyn Error>> {
+        if path.is_dir() {
+            for entry in std::fs::read_dir(path)? {
+                let path = entry?.path();
+
+                if path.is_file() {
+                    results.push(path);
+                } else if options.recursive && path.is_dir() {
+                    search_path(&path, results, options)?;
+                }
+            }
+        } else if path.is_file() {
+            results.push(path.to_path_buf());
+        }
+
+        Ok(())
+    }
+
+    pub enum Algo {
+        Md5,
+        Blake3,
+        Sha256,
+        Sha512,
+    }
+
+    pub struct Options {
+        pub recursive: bool,
+        pub algo: Algo,
+    }
+
+    pub fn check_and_rename(
+        file_path: &PathBuf,
+        algo: &Algo,
+        existing_files: &Mutex<HashMap<PathBuf, PathBuf>>,
+    ) {
+        let checksum = match algo {
+            Algo::Blake3 => b3_sum(file_path),
+            Algo::Md5 => md5_sum(file_path),
+            Algo::Sha256 => sha256_sum(file_path),
+            Algo::Sha512 => sha512_sum(file_path),
+        };
+
+        let new_name = match file_path.extension() {
+            Some(ext) => format!("{}.{}", checksum.to_uppercase(), ext.to_string_lossy()),
+            None => checksum,
+        };
+
+        let new_path = file_path.with_file_name(new_name);
+
+        if new_path.exists() {
+            existing_files
+                .lock()
+                .unwrap()
+                .insert(file_path.clone(), new_path);
+        } else {
+            fs::rename(file_path, &new_path).expect("rename files failed");
+        }
+    }
+
+    fn md5_sum(file_path: &PathBuf) -> String {
         let file = fs::File::open(file_path).unwrap();
         let mut reader = std::io::BufReader::with_capacity(5_242_880, file);
-        let mut hasher = Hasher::new();
+
+        let mut hasher = Md5::new();
+
         let mut buffer = vec![0; 5_242_880];
 
-        // Read the file in chunks and update the hasher
         loop {
             match reader.read(&mut buffer) {
                 Ok(0) => break, // EOF
@@ -26,58 +134,75 @@ pub mod rnamed {
 
         let result = hasher.finalize();
 
-        let checksum = format!("{}", result);
-        let new_name = match file_path.extension() {
-            Some(ext) => format!("{}.{}", checksum.to_uppercase(), ext.to_string_lossy()),
-            None => checksum,
-        };
-
-        // Create a new path for the renamed file
-        let new_path = file_path.with_file_name(new_name);
-
-        if new_path.exists() {
-            // If the target file name already exists, add it to the HashSet
-            existing_files.lock().unwrap().insert(file_path.clone());
-        } else {
-            // Rename the file
-            fs::rename(file_path, &new_path).expect("rename files failed");
-        }
+        format!("{:x}", result)
     }
 
-    pub fn rename_files_in_directory(
-        dir: PathBuf,
-        existing_files: &Mutex<HashSet<PathBuf>>,
-        r: bool,
-    ) {
-        // let paths = fs::read_dir(dir)?;
-        match fs::read_dir(dir) {
-            Ok(paths) => {
-                let mut file_vec = Vec::new();
-                let mut dir_vec = Vec::new();
+    fn b3_sum(file_path: &PathBuf) -> String {
+        let file = fs::File::open(file_path).unwrap();
+        let mut reader = std::io::BufReader::with_capacity(5_242_880, file);
 
-                paths
-                    .into_iter()
-                    .filter_map(|e| e.ok())
-                    .map(|e| e.path())
-                    .for_each(|e| {
-                        if e.is_dir() {
-                            dir_vec.push(e);
-                        } else {
-                            file_vec.push(e);
-                        }
-                    });
-                file_vec
-                    .par_iter()
-                    .for_each(|e| check_and_rename(e, existing_files));
-                if r {
-                    dir_vec.par_iter().for_each(|e| {
-                        rename_files_in_directory(e.to_path_buf(), existing_files, r)
-                    });
+        let mut hasher = Hasher::new();
+
+        let mut buffer = vec![0; 5_242_880];
+
+        loop {
+            match reader.read(&mut buffer) {
+                Ok(0) => break, // EOF
+                Ok(n) => {
+                    hasher.update(&buffer[..n]);
                 }
-            }
-            Err(_) => {
-                println!("Error reading dir");
+                Err(e) => panic!("Error reading file: {}", e),
             }
         }
+
+        let result = hasher.finalize();
+
+        format!("{}", result)
+    }
+
+    fn sha256_sum(file_path: &PathBuf) -> String {
+        let file = fs::File::open(file_path).unwrap();
+        let mut reader = std::io::BufReader::with_capacity(5_242_880, file);
+
+        let mut hasher = Sha256::new();
+
+        let mut buffer = vec![0; 5_242_880];
+
+        loop {
+            match reader.read(&mut buffer) {
+                Ok(0) => break, // EOF
+                Ok(n) => {
+                    hasher.update(&buffer[..n]);
+                }
+                Err(e) => panic!("Error reading file: {}", e),
+            }
+        }
+
+        let result = hasher.finalize();
+
+        format!("{:x}", result)
+    }
+
+    fn sha512_sum(file_path: &PathBuf) -> String {
+        let file = fs::File::open(file_path).unwrap();
+        let mut reader = std::io::BufReader::with_capacity(5_242_880, file);
+
+        let mut hasher = Sha512::new();
+
+        let mut buffer = vec![0; 5_242_880];
+
+        loop {
+            match reader.read(&mut buffer) {
+                Ok(0) => break, // EOF
+                Ok(n) => {
+                    hasher.update(&buffer[..n]);
+                }
+                Err(e) => panic!("Error reading file: {}", e),
+            }
+        }
+
+        let result = hasher.finalize();
+
+        format!("{:x}", result)
     }
 }
