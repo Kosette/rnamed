@@ -1,6 +1,6 @@
 [package]
 name = "rnamed"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2021"
 authors = ["Kosette"]
 description = "A simple tool to rename files to their checksum"
@@ -11,6 +11,7 @@ license = "MIT"
 [dependencies]
 blake3 = "1.5"
 clap = { version = "4.5", features = ["derive"] }
+console = "0.15"
 glob = "0.3"
 indicatif = { version = "0.17", features = ["rayon"] }
 md-5 = "0.10"

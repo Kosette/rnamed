@@ -83,14 +83,15 @@ pub mod rnamed {
     pub struct Options {
         pub recursive: bool,
         pub algo: Algo,
+        pub dry_run: bool,
     }
 
     pub fn check_and_rename(
         file_path: &PathBuf,
-        algo: &Algo,
+        options: &Options,
         existing_files: &Mutex<HashMap<PathBuf, PathBuf>>,
     ) {
-        let checksum = match algo {
+        let checksum = match options.algo {
             Algo::Blake3 => b3_sum(file_path),
             Algo::Md5 => md5_sum(file_path),
             Algo::Sha256 => sha256_sum(file_path),
@@ -104,13 +105,20 @@ pub mod rnamed {
 
         let new_path = file_path.with_file_name(new_name);
 
-        if new_path.exists() {
+        if !options.dry_run {
+            if new_path.exists() {
+                existing_files
+                    .lock()
+                    .unwrap()
+                    .insert(file_path.clone(), new_path);
+            } else {
+                fs::rename(file_path, &new_path).expect("rename files failed");
+            }
+        } else {
             existing_files
                 .lock()
                 .unwrap()
                 .insert(file_path.clone(), new_path);
-        } else {
-            fs::rename(file_path, &new_path).expect("rename files failed");
         }
     }
 
