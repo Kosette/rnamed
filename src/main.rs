@@ -47,7 +47,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             Some("blake3") | Some("b3") => Algo::Blake3,
             Some("sha256") => Algo::Sha256,
             Some("sha512") => Algo::Sha512,
-            None => Algo::Md5,
+            None => Algo::Blake3,
             _ => {
                 return Err("Unrecognized algorithm, use `--help` to see more.".into());
             }
