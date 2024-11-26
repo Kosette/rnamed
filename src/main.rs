@@ -1,11 +1,12 @@
 use clap::Parser;
 use console::{style, Emoji};
-use indicatif::{HumanDuration, ParallelProgressIterator, ProgressStyle};
+use indicatif::{HumanDuration, ParallelProgressIterator, ProgressBar, ProgressStyle};
 use rayon::prelude::*;
 use rnamed::rnamed::{check_and_rename, search_files, Algo, Options};
 use std::collections::HashMap;
 use std::error::Error;
 use std::sync::Mutex;
+use std::time::Duration;
 
 #[derive(Parser)]
 #[command(version,about,long_about=None,arg_required_else_help(true))]
@@ -68,11 +69,20 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let spinner_style = ProgressStyle::with_template("{spinner:.green} {msg}").unwrap();
 
-    println!("{} {}Renaming files...", style("[2/3]").bold().dim(), CLIP);
+    let pb = ProgressBar::new_spinner();
+    pb.set_style(spinner_style);
+    pb.enable_steady_tick(Duration::from_millis(100));
+
+    println!(
+        "{} {}Renaming {} files...",
+        style("[2/3]").bold().dim(),
+        CLIP,
+        files_list.len()
+    );
 
     files_list[..]
         .par_iter()
-        .progress_with_style(spinner_style)
+        .progress_with(pb)
         .with_message(format!("{}Working in progress, waiting...", ROCKET))
         .for_each(|path| {
             check_and_rename(path, &options, &existing_files);
