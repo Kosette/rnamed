@@ -13,7 +13,7 @@ use std::time::Duration;
 struct Args {
     /// Searching path or a single file path
     path: String,
-    /// Set algorithm, default to `md5`. use `--help` to See more.
+    /// Set algorithm, default to `blake3`. use `--help` to See more.
     ///
     /// "md5" => "Md5" | "b3" or "blake3" => "Blake3" | "sha256" => "Sha256" | "sha512" => "Sha512"
     #[arg(short, long)]

@@ -15,7 +15,7 @@ Arguments:
 
 Options:
   -a, --algo <ALGO>
-          Set algorithm, default to `md5`. use `--help` to See more.
+          Set algorithm, default to `blake3`. use `--help` to See more.
 
           "md5" => "Md5" | "b3" or "blake3" => "Blake3" | "sha256" => "Sha256" | "sha512" => "Sha512"
 
