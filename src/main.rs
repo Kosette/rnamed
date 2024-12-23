@@ -1,3 +1,4 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 use eframe::egui;
 use rayon::prelude::*;
 use std::fs;
@@ -65,6 +66,29 @@ impl eframe::App for RenamerApp {
 }
 
 impl RenamerApp {
+    fn new(cc: &eframe::CreationContext<'_>) -> Self {
+        // Set style
+        let mut style = (*cc.egui_ctx.style()).clone();
+        style.text_styles = [
+            (
+                egui::TextStyle::Heading,
+                egui::FontId::new(20.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Button,
+                egui::FontId::new(16.0, egui::FontFamily::Proportional),
+            ),
+            (
+                egui::TextStyle::Body,
+                egui::FontId::new(14.0, egui::FontFamily::Proportional),
+            ),
+        ]
+        .into();
+        cc.egui_ctx.set_style(style);
+
+        Default::default()
+    }
+
     fn rename_files(&mut self) {
         let mut files_to_process = Vec::new();
 
@@ -158,6 +182,6 @@ fn main() -> eframe::Result<()> {
     eframe::run_native(
         "Blake3 File Renamer",
         options,
-        Box::new(|_cc| Ok(Box::<RenamerApp>::default())),
+        Box::new(|cc| Ok(Box::new(RenamerApp::new(cc)))),
     )
 }
