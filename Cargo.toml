@@ -1,0 +1,17 @@
+[package]
+name = "rnmd"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+blake3 = "1.5"
+eframe = "0.30"
+rayon = "1.10"
+rfd = "0.15"
+walkdir = "2.5"
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = "s"
+strip = true
