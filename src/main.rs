@@ -25,13 +25,13 @@ impl eframe::App for RenamerApp {
                 if ui.button("Select Files").clicked() {
                     if let Some(files) = rfd::FileDialog::new().pick_files() {
                         self.paths = files;
-                        self.status = format!("Selected {} files", self.paths.len());
+                        self.status = format!("Selected {} file(s)", self.paths.len());
                     }
                 }
                 if ui.button("Select Folder").clicked() {
-                    if let Some(folder) = rfd::FileDialog::new().pick_folder() {
-                        self.paths = vec![folder];
-                        self.status = "Selected 1 folder".to_string();
+                    if let Some(folders) = rfd::FileDialog::new().pick_folders() {
+                        self.paths = folders;
+                        self.status = format!("Selected {} folder(s)", self.paths.len());
                     }
                 }
 
