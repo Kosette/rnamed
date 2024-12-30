@@ -1,0 +1,104 @@
+name: Build Releases
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - v*-gui
+
+env:
+  CARGO_TERM_COLOR: always
+  CARGO_REGISTRIES_CRATES_IO_PROTOCOL: sparse
+
+jobs:
+  build-cross:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      RUST_BACKTRACE: full
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-musl
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get latest tagname
+        run: echo "TAG_NAME=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+
+      - name: Install cross
+        run: cargo install cross
+
+      - name: Build ${{ matrix.target }}
+        timeout-minutes: 120
+        run: |
+          cross build --release --target ${{ matrix.target }} &&
+          cp target/${{ matrix.target }}/release/rnmd target/${{ matrix.target }}/release/rnamed-gui-${{ matrix.target }}
+
+      - name: Upload Github Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/${{ matrix.target }}/release/rnamed-gui-${{ matrix.target }}
+          tag_name: ${{ env.TAG_NAME }}
+          prerelease: ${{ contains(github.ref, '-rc') }}
+
+  build-unix:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    env:
+      RUST_BACKTRACE: full
+    strategy:
+      matrix:
+        target:
+          - x86_64-apple-darwin
+          - aarch64-apple-darwin
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get latest tagname
+        run: echo "TAG_NAME=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+
+      - name: Build release
+        shell: bash
+        run: |
+          rustup target add ${{matrix.target}}
+          cargo build --release --target ${{ matrix.target }} &&
+          mv target/${{ matrix.target }}/release/rnmd target/${{ matrix.target }}/release/rnamed-gui-${{ matrix.target }}
+
+      - name: Upload Github Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/${{ matrix.target }}/release/rnamed-gui-${{ matrix.target }}
+          tag_name: ${{ env.TAG_NAME }}
+          prerelease: ${{ contains(github.ref, '-rc') }}
+
+  build-windows:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    env:
+      RUST_BACKTRACE: full
+    strategy:
+      matrix:
+        target:
+          - x86_64-pc-windows-msvc
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get latest tagname
+        run: echo "TAG_NAME=$(git describe --tags --abbrev=0)" >> $GITHUB_ENV
+
+      - name: Build release
+        run: |
+          cargo build --release --target ${{ matrix.target }} &&
+          mv target/${{ matrix.target }}/release/rnmd.exe target/${{ matrix.target }}/release/rnamed-gui-${{ matrix.target }}.exe
+      - name: Upload Github Assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/${{ matrix.target }}/release/rnamed-gui-${{ matrix.target }}.exe
+          tag_name: ${{ env.TAG_NAME }}
+          prerelease: ${{ contains(github.ref, '-rc') }}

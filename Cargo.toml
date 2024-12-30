@@ -1,5 +1,6 @@
 [package]
 name = "rnmd"
+description = "A simple GUI tool to rename files"
 version = "0.1.0"
 edition = "2021"
 
