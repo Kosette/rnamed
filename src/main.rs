@@ -1,5 +1,6 @@
 #![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
 use eframe::egui;
+use md5::{Digest, Md5};
 use rayon::prelude::*;
 use std::fs;
 use std::io::Read;
@@ -9,8 +10,16 @@ use walkdir::WalkDir;
 #[derive(Default)]
 struct RenamerApp {
     paths: Vec<PathBuf>,
+    algo: Algo,
     status: String,
     recursive: bool,
+}
+
+#[derive(Default, PartialEq)]
+enum Algo {
+    #[default]
+    MD5,
+    BLAKE3,
 }
 
 impl eframe::App for RenamerApp {
@@ -43,6 +52,14 @@ impl eframe::App for RenamerApp {
             ui.add_space(10.0);
             // Recursive option
             ui.checkbox(&mut self.recursive, "Recursive folder search");
+
+            ui.add_space(10.0);
+            // hash algorithm
+            ui.horizontal(|ui| {
+                ui.label("Select hash method: ");
+                ui.radio_value(&mut self.algo, Algo::MD5, "md5");
+                ui.radio_value(&mut self.algo, Algo::BLAKE3, "blake3");
+            });
 
             ui.add_space(10.0);
 
@@ -114,16 +131,29 @@ impl RenamerApp {
         }
 
         // Process files in parallel
-        let results: Vec<_> = files_to_process
-            .par_iter()
-            .filter_map(|file| self.process_file(file))
-            .collect();
+        match &self.algo {
+            Algo::MD5 => {
+                let results: Vec<_> = files_to_process
+                    .par_iter()
+                    .filter_map(|file| self.process_file_with_md5(file))
+                    .collect();
 
-        self.status = format!("Renamed {} files", results.len());
+                self.status = format!("Renamed {} files", results.len());
+            }
+            Algo::BLAKE3 => {
+                let results: Vec<_> = files_to_process
+                    .par_iter()
+                    .filter_map(|file| self.process_file_with_blake3(file))
+                    .collect();
+
+                self.status = format!("Renamed {} files", results.len());
+            }
+        }
+
         self.paths.clear();
     }
 
-    fn process_file(&self, file_path: &Path) -> Option<()> {
+    fn process_file_with_blake3(&self, file_path: &Path) -> Option<()> {
         let file = fs::File::open(file_path).ok()?;
         let mut reader = std::io::BufReader::with_capacity(5_242_880, file);
 
@@ -164,6 +194,47 @@ impl RenamerApp {
         fs::rename(file_path, new_path).ok()
     }
 
+    fn process_file_with_md5(&self, file_path: &Path) -> Option<()> {
+        let file = fs::File::open(file_path).ok()?;
+        let mut reader = std::io::BufReader::with_capacity(5_242_880, file);
+
+        let mut hasher = Md5::new();
+
+        let mut buffer = vec![0; 5_242_880];
+
+        loop {
+            match reader.read(&mut buffer) {
+                Ok(0) => break,
+                Ok(n) => {
+                    hasher.update(&buffer[..n]);
+                }
+                Err(e) => panic!("Error reading file: {}", e),
+            }
+        }
+
+        let hash = hasher.finalize();
+
+        let hash_hex = format!("{:X}", hash);
+
+        // Create new filename
+        let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        let new_name = if ext.is_empty() {
+            hash_hex
+        } else {
+            format!("{}.{}", hash_hex, ext)
+        };
+
+        let new_path = file_path.with_file_name(new_name);
+
+        // Skip if target file already exists
+        if new_path.exists() {
+            return None;
+        }
+
+        // Rename file
+        fs::rename(file_path, new_path).ok()
+    }
+
     fn clear_state(&mut self) {
         self.paths = Vec::new();
         self.status = String::new();
@@ -174,7 +245,7 @@ impl RenamerApp {
 fn main() -> eframe::Result<()> {
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
-            .with_inner_size([400.0, 300.0])
+            .with_inner_size([440.0, 330.0])
             .with_drag_and_drop(true),
         ..Default::default()
     };

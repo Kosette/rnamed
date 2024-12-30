@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 blake3 = "1.5"
 eframe = "0.30"
+md-5 = "0.10"
 rayon = "1.10"
 rfd = "0.15"
 walkdir = "2.5"
